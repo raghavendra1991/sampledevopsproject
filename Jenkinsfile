@@ -24,11 +24,6 @@ pipeline {
 		}
 	    }
 	}
-        stage ('Generate Test Reports') {
-            steps {
-                junit 'test-reports/*.xml'
-            }
-        }
 	stage ('Publish Artifactory') {
 	    steps {
 		    withCredentials([usernamePassword(credentialsId: 'artifactory', passwordVariable: 'passwd', usernameVariable: 'user')]) {
