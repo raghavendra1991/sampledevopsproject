@@ -23,6 +23,8 @@ pipeline {
 	    stage ('test') {
 	        steps {
 		        sh 'python3 test.py'
+			sh 'coverage run test.py'
+			sh 'coverage xml'
 	        }
 	    }	
 	    stage('SonarQube Analysis') {
