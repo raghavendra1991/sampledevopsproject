@@ -1,35 +1,67 @@
 // Declarative pipeline
 pipeline {
     agent any
+    options {
+        // This is required if you want to clean before build
+        skipDefaultCheckout(true)
+    }
     stages {
-        stage ('Clean Reports') {
+        stage('CleanUp WorkSpace') {
             steps {
-                sh 'rm -rf test-reports || true'  
+                // Clean before build
+                cleanWs()
+                // We need to explicitly checkout from SCM here
+                checkout scm
+                echo "Building ${env.JOB_NAME}..."
             }
         }
-	stage ('test') {
-	    steps {
-		sh 'python3 test.py && coverage run test.py && coverage xml'
-	    }
-	}	
-	stage('SonarQube Analysis') {
-	    environment {
-		scannerHome = tool 'SonarQube Scanner'
+	    stage ('test') {
+	        steps {
+		        sh 'python3 test.py && coverage run test.py && coverage xml'
+	        }
+	    }	
+	    stage('SonarQube Analysis') {
+	        environment {
+		        scannerHome = tool 'SonarQube Scanner'
             }
-	    steps {				
-		withSonarQubeEnv('admin') {
-		     sh '${scannerHome}/bin/sonar-scanner \
- 	   	     -D sonar.projectKey=sampledevopsproject \
-		     -D sonar.python.coverage.reportPaths=coverage.xml'	
-		}
+	        steps {				
+		        withSonarQubeEnv('admin') {
+		            sh '${scannerHome}/bin/sonar-scanner \
+ 	   	            -D sonar.projectKey=sampledevopsproject \
+		            -D sonar.python.coverage.reportPaths=coverage.xml'	
+		        }
+	        }
 	    }
-	}
-	stage ('Publish Artifactory') {
-	    steps {
-		    withCredentials([usernamePassword(credentialsId: 'artifactory', passwordVariable: 'passwd', usernameVariable: 'user')]) {
-    		         sh 'jf rt upload test-reports/ python-app/'
-		    }	
-	    }
-	}
+	    stage ('Archive artifacts') {
+            steps {
+                archiveArtifacts artifacts: 'test-reports/'
+            }
+        }
+        stage ('Publish Artifactory') {
+	        steps {
+		        rtUpload (
+		            serverId: 'JFrog',
+		            spec: '''{
+ 			            "files" :[
+			                {
+		                         "pattern": "test-reports/",
+		                        "target": "python-app/",
+	                            "recursive": "false"
+			                }
+		                ]
+		            }'''
+	            )
+	        }
+        }
+    }
+    post {
+        // Clean after build
+        always {
+            cleanWs(cleanWhenNotBuilt: false,
+                deleteDirs: true,
+                disableDeferredWipeout: true,
+                notFailBuild: true
+	        )
+        }
     }
 }
