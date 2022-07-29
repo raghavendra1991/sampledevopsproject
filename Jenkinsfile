@@ -15,6 +15,11 @@ pipeline {
                 echo "Building ${env.JOB_NAME}..."
             }
         }
+	    stage ('Build') {
+	        steps {
+		        sh 'pip install -r requirements.txt && pip install -e .'
+	        }
+	    }
 	    stage ('test') {
 	        steps {
 		        sh 'python3 test.py && coverage run test.py && coverage xml'
