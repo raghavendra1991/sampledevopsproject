@@ -1,49 +1,64 @@
 // Declarative pipeline
 pipeline {
     agent any
+    options {
+        // This is required if you want to clean before build
+        skipDefaultCheckout(true)
+    }
     stages {
-        stage ('Clean Reports') {
+        stage('CleanUp WorkSpace') {
             steps {
-			    echo '********* Cleaning Workspace Stage Started **********'
-                sh 'rm -rf /s /q test-reports || true'  
-			    echo '********* Cleaning Workspace Stage Finished **********'
+                // Clean before build
+                cleanWs()
+                // We need to explicitly checkout from SCM here
+                checkout scm
+                echo "Building ${env.JOB_NAME}..."
             }
         }
-		stage ('test') {
+	    stage ('Build') {
 	        steps {
-				echo '********* Test Stage Started **********'
-				sh 'python3 test.py'
-				echo '********* Test Stage Finished **********'
-			}
-		}
-		
-		stage('SonarQube Analysis') {
-			environment {
-				scannerHome = tool 'SonarQube Scanner'
-    			}
-			steps {
-				echo '********* Test Stage Started **********'
-				
-				withSonarQubeEnv('admin') {
-					sh '${scannerHome}/bin/sonar-scanner \
-					-D sonar.projectKey=python'
-				}
-				echo '********* Test Stage Finished **********'
-			}
-		}
-        stage ('Generate Test Reports') {
+		        sh 'pip install -r requirements.txt'
+	        }
+	    }
+	    stage ('test') {
+	        steps {
+		        sh 'python3 test.py'
+			
+	        }
+	    }	
+	    stage('SonarQube Analysis') {
+	        environment {
+		        scannerHome = tool 'SonarQube Scanner'
+            }
+	        steps {				
+		        withSonarQubeEnv('admin') {
+		            sh '${scannerHome}/bin/sonar-scanner \
+ 	   	            -D sonar.projectKey=sampledevopsproject \
+		            -D sonar.python.coverage.reportPaths=coverage.xml'	
+		        }
+	        }
+	    }
+	    stage ('Archive artifacts') {
             steps {
-                junit 'test-reports/*.xml'       
+                archiveArtifacts artifacts: 'test-reports/'
             }
         }
-		stage ('Publish Artifactory') {
-		    steps {
-				echo '********* Publish Report to JFrog Artifacts **********' 
-				withCredentials([usernamePassword(credentialsId: 'artifactory', passwordVariable: 'passwd', usernameVariable: 'user')]) {
-					sh 'jf rt upload test-reports/ python-app/'
-				}
-				echo '********* Publish Report Finished **********'	
-			}
-		}
-	}
+        stage ('Publish Artifactory') {
+	        steps {
+		        rtUpload (
+		            serverId: 'JFrog',
+		            spec: '''{
+ 			            "files" :[
+			                {
+		                         "pattern": "test-reports/",
+		                        "target": "python-app/",
+	                            "recursive": "false"
+			                }
+		                ]
+		            }'''
+	            )
+	        }
+        }
+    }
+}
 }
