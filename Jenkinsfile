@@ -23,7 +23,7 @@ pipeline {
 	    stage ('test') {
 	        steps {
 		        sh 'python3 test.py'
-			sh 'python3 -m coverage xml -o htmlcov/coverage.xml'
+			sh 'coverage run test.py'
 			
 	        }
 	    }	
