@@ -22,7 +22,7 @@ pipeline {
 	    }
 	    stage ('test') {
 	        steps {
-		        sh 'python3 test.py && coverage run test.py && coverage xml'
+		        sh 'python3 test.py'
 	        }
 	    }	
 	    stage('SonarQube Analysis') {
